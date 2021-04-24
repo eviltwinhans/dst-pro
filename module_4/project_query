@@ -1,0 +1,53 @@
+  WITH winter1617 AS
+(
+SELECT fl.flight_id,
+	   fl.actual_arrival,
+	   60 * DATE_PART('hour', fl.actual_arrival-fl.actual_departure) 
+         + DATE_PART('minute', fl.actual_arrival-fl.actual_departure)*1.0 AS flight_duration,
+	   fl.arrival_airport,
+	   fl.aircraft_code,
+	   COUNT(tf.ticket_no) AS tickets_sold,
+	   (CASE WHEN arrival_airport = 'SVO' THEN 233 + 602     --расходы на аэропорты SVO и AAQ за единицу взлётной массы
+	         WHEN arrival_airport = 'EGO' THEN 800 + 602 END --расходы на аэропорты EGO и AAQ за единицу взлётной массы
+	   ) AS expense_per_mwot,
+	   (CASE WHEN arrival_airport = 'SVO' THEN 190 + 185     --расходы на аэропорты SVO и AAQ за одного пассажира
+	         WHEN arrival_airport = 'EGO' THEN 244 + 185 END --расходы на аэропорты EGO и AAQ за одного пассажира
+	   ) AS expense_per_pass,
+	   (CASE WHEN arrival_airport = 'SVO' THEN 1250          --приблизительная длина пути из Анапы в Шереметьево
+	         WHEN arrival_airport = 'EGO' THEN 700 END       --приблизительная длина пути из Анапы в Белгород
+	   ) AS distance,
+	   (CASE WHEN aircraft_code = 'SU9' THEN 46
+	         WHEN aircraft_code = '733' THEN 63 END
+	   ) AS mwot,											 --единица взлётной массы SSJ 100 и Boeing 737-300							
+	   (CASE WHEN aircraft_code = 'SU9' THEN 700000/80 + 1.7*38000
+	         WHEN aircraft_code = '733' THEN 900000/80 + 2.4*38000 END
+	   ) AS expense_per_hour,								 --траты каждого самолёта на экипаж и топливо за час
+	   SUM(tf.amount) AS flight_revenue
+  FROM dst_project.flights fl
+	   JOIN dst_project.ticket_flights tf
+	   ON fl.flight_id = tf.flight_id
+ WHERE departure_airport = 'AAQ'
+   AND (DATE_TRUNC('month', fl.scheduled_departure) IN ('2017-01-01','2017-02-01', '2016-12-01'))
+   AND status NOT IN ('Cancelled')
+ GROUP BY 1, 2, 3, 4, 5
+ ORDER BY 2
+)
+SELECT flight_id,
+	   actual_arrival,
+	   arrival_airport,
+	   aircraft_code,
+	   tickets_sold,
+	   (
+		expense_per_mwot * mwot                   --расходы на аэропорты за самолёты
+	    + expense_per_pass * tickets_sold         --расходы на аэропорты за пассажиров
+		+ expense_per_hour * flight_duration / 60 --расходы на зарплату экипажа и топливо
+		+ 4 * distance                            --приблизительные траты на навигационные услуги в 2016-2017 годах
+	   )*1.01 AS flight_expense,                  --прямые эксплуатационные расходы на рейс (и накинут ещё 1% в качестве оценки погрешности)
+	   (
+		flight_revenue
+		- (expense_per_mwot * mwot             
+	      + expense_per_pass * tickets_sold
+	      )*6.67
+	   ) AS approximate_profitability,            --согласно оценке МинЭкономРазвития, расходы авиакомпании на услуги аэропортов составляют около 15% всех расходов 
+	   flight_revenue
+  FROM winter1617;

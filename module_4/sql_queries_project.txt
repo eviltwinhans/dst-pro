@@ -1,0 +1,253 @@
+--4.1
+
+  SELECT city, COUNT(airport_code) AS airport_count		
+    FROM dst_project.airports
+GROUP BY city
+ORDER BY airport_count DESC, city
+   LIMIT 3;
+   
+--4.2.1
+
+  SELECT COUNT(DISTINCT status) AS status_total	
+    FROM dst_project.flights;
+	
+--4.2.2
+
+  SELECT COUNT(flight_id) AS off_the_ground	
+    FROM dst_project.flights
+   WHERE status = 'Departed'
+   
+-4.2.3
+
+  SELECT s.aircraft_code, count(s.seat_no) AS seats_773_total
+    FROM dst_project.seats AS s
+   WHERE s.aircraft_code = '773'
+GROUP BY s.aircraft_code;
+
+--4.2.4
+
+  SELECT COUNT(f.flight_id) AS flights_total
+    FROM dst_project.flights AS f
+   WHERE (f.actual_arrival BETWEEN '2017-04-01' AND '2017-09-01')
+         AND (f.status = 'Arrived');
+		 
+--4.3.1
+
+  SELECT COUNT(f.flight_id) AS flights_total
+    FROM dst_project.flights AS f
+   WHERE f.status = 'Cancelled';
+   
+--4.3.2
+
+  SELECT 'Boeing' AS aircraft, COUNT(aircraft_code) AS model_count
+    FROM dst_project.aircrafts
+   WHERE model LIKE 'Boeing%'
+
+   UNION
+
+  SELECT 'Sukhoi' AS aircraft, COUNT(aircraft_code) AS model_count
+    FROM dst_project.aircrafts
+   WHERE model LIKE 'Sukhoi%'
+   
+   UNION
+
+  SELECT 'Airbus' AS aircraft, COUNT(aircraft_code) AS model_count
+    FROM dst_project.aircrafts
+   WHERE model LIKE 'Airbus%';
+   
+--4.3.3
+
+  SELECT COUNT(a.airport_code), 
+         (CASE
+            WHEN a.timezone LIKE 'Europe%' THEN 'Europe'
+            WHEN a.timezone LIKE 'Asia%' THEN 'Asia' END
+         ) AS part_of_the_world
+    FROM dst_project.airports AS a
+GROUP BY 2
+ORDER BY 1 DESC;
+
+--4.3.4
+
+  SELECT f.flight_id, 
+         (f.actual_arrival - f.scheduled_arrival) AS delay
+    FROM dst_project.flights AS f
+   WHERE f.actual_arrival IS NOT NULL
+ORDER BY 2 DESC
+   LIMIT 1;
+   
+--4.4.1
+
+  SELECT f.scheduled_departure
+    FROM dst_project.flights f
+ORDER BY 1
+   LIMIT 1;
+   
+--4.4.2
+
+  SELECT 60 * DATE_PART('hour', MAX(f.scheduled_arrival - f.scheduled_departure)) 
+         + DATE_PART('minute', MAX(f.scheduled_arrival - f.scheduled_departure)) AS duration
+    FROM dst_project.flights f;
+	
+--4.4.3
+
+  SELECT f.departure_airport,
+         f.arrival_airport,
+         f.scheduled_arrival - f.scheduled_departure AS duration
+    FROM dst_project.flights f
+ORDER BY 3 DESC
+   LIMIT 1;
+   
+--4.4.4
+
+  SELECT 60 * DATE_PART('hour', AVG(f.actual_arrival - f.actual_departure)) 
+         + DATE_PART('minute', AVG(f.actual_arrival - f.actual_departure)) AS avg_duration
+    FROM dst_project.flights f
+   WHERE f.actual_arrival IS NOT NULL
+         AND f.actual_departure IS NOT NULL;
+		 
+--4.5.1
+
+  SELECT s.fare_conditions,
+         COUNT(s.seat_no)
+    FROM dst_project.seats s
+   WHERE aircraft_code = 'SU9'
+GROUP BY 1
+ORDER BY 2 DESC
+   LIMIT 1;
+   
+--4.5.2
+
+  SELECT b.total_amount
+    FROM dst_project.bookings b
+ORDER BY 1
+   LIMIT 1;
+   
+--4.5.3
+
+  SELECT bp.seat_no,
+         t.passenger_id
+    FROM dst_project.boarding_passes bp
+         JOIN dst_project.ticket_flights tf
+         ON bp.ticket_no = tf.ticket_no
+         AND bp.flight_id = tf.flight_id
+         
+         JOIN dst_project.tickets t
+         ON t.ticket_no = tf.ticket_no
+   WHERE t.passenger_id = '4313 788533';
+   
+--5.1.1
+
+  SELECT COUNT(flight_id)
+    FROM dst_project.flights f
+         JOIN dst_project.airports a
+         ON f.arrival_airport = a.airport_code
+   WHERE a.city = 'Anapa'
+         AND DATE_PART('year', f.actual_arrival) = 2017;
+		 
+--5.1.2
+
+  SELECT COUNT(flight_id)
+    FROM dst_project.flights f
+         JOIN dst_project.airports a
+         ON f.departure_airport = a.airport_code
+   WHERE a.city = 'Anapa'
+         AND DATE_PART('year', f.actual_departure) = 2017
+         AND DATE_PART('month', f.actual_departure) IN (1, 2, 12);
+		 
+--5.1.3
+
+  SELECT COUNT(flight_id)
+    FROM dst_project.flights f
+         JOIN dst_project.airports a
+         ON f.departure_airport = a.airport_code
+   WHERE a.city = 'Anapa'
+         AND status = 'Cancelled';
+
+--5.1.4
+
+  SELECT COUNT(DISTINCT flight_id)
+    FROM dst_project.flights f
+         JOIN dst_project.airports a
+         ON f.arrival_airport = a.airport_code         
+   WHERE a.city != 'Moscow'
+         AND f.departure_airport = 'AAQ';
+		 
+--5.1.5
+
+  SELECT a.model,
+         COUNT(s.seat_no)
+    FROM dst_project.flights f
+         JOIN dst_project.aircrafts a
+         ON f.aircraft_code = a.aircraft_code
+         
+         JOIN dst_project.seats s
+         ON f.aircraft_code = s.aircraft_code
+   WHERE f.departure_airport = 'AAQ'
+GROUP BY 1
+ORDER BY 2 DESC
+   LIMIT 1;
+   
+/*
+Дополнительная информация: 
+https://realnoevremya.ru/attachments/47 - расходы на услуги аэропортов
+http://newsruss.ru/doc/index.php/%D0%A0%D0%B0%D1%81%D1%85%D0%BE%D0%B4_%D1%82%D0%BE%D0%BF%D0%BB%D0%B8%D0%B2%D0%B0_%D1%81%D0%B0%D0%BC%D0%BE%D0%BB%D0%B5%D1%82%D0%B0 - расход топлива
+http://superjet.wikidot.com/wiki:fuel-real-flight - дополнительные данные про SSJ 100, приблизительные зарплаты членов экипажа в 2016 году
+https://favt.gov.ru/public/materials/f/3/0/b/2/f30b20c62caaeb69ba292f632efa6e1b.rtf - цены на авиационное топливо в Анапе в конце 2016 года
+https://realnoevremya.ru/articles/39304, https://rg.ru/pril/article/115/04/08/Monitoring_razvitiia_grazhdanskoj_aviacii.pdf - оценка МинЭкономРазвития о том, что на аэропорты приходится около 15% расходов авиакомпаний
+/*
+
+--Запрос для проекта
+
+  WITH winter1617 AS
+(
+SELECT fl.flight_id,
+	   fl.actual_arrival,
+	   60 * DATE_PART('hour', fl.actual_arrival-fl.actual_departure) 
+         + DATE_PART('minute', fl.actual_arrival-fl.actual_departure)*1.0 AS flight_duration,
+	   fl.arrival_airport,
+	   fl.aircraft_code,
+	   COUNT(tf.ticket_no) AS tickets_sold,
+	   (CASE WHEN arrival_airport = 'SVO' THEN 233 + 602     --расходы на аэропорты SVO и AAQ за единицу взлётной массы
+	         WHEN arrival_airport = 'EGO' THEN 800 + 602 END --расходы на аэропорты EGO и AAQ за единицу взлётной массы
+	   ) AS expense_per_mwot,
+	   (CASE WHEN arrival_airport = 'SVO' THEN 190 + 185     --расходы на аэропорты SVO и AAQ за одного пассажира
+	         WHEN arrival_airport = 'EGO' THEN 244 + 185 END --расходы на аэропорты EGO и AAQ за одного пассажира
+	   ) AS expense_per_pass,
+	   (CASE WHEN arrival_airport = 'SVO' THEN 1250          --приблизительная длина пути из Анапы в Шереметьево
+	         WHEN arrival_airport = 'EGO' THEN 700 END       --приблизительная длина пути из Анапы в Белгород
+	   ) AS distance,
+	   (CASE WHEN aircraft_code = 'SU9' THEN 46
+	         WHEN aircraft_code = '733' THEN 63 END
+	   ) AS mwot,											 --единица взлётной массы SSJ 100 и Boeing 737-300							
+	   (CASE WHEN aircraft_code = 'SU9' THEN 700000/80 + 1.7*38000
+	         WHEN aircraft_code = '733' THEN 900000/80 + 2.4*38000 END
+	   ) AS expense_per_hour,								 --траты каждого самолёта на экипаж и топливо за час
+	   SUM(tf.amount) AS flight_revenue
+  FROM dst_project.flights fl
+	   JOIN dst_project.ticket_flights tf
+	   ON fl.flight_id = tf.flight_id
+ WHERE departure_airport = 'AAQ'
+   AND (DATE_TRUNC('month', fl.scheduled_departure) IN ('2017-01-01','2017-02-01', '2016-12-01'))
+   AND status NOT IN ('Cancelled')
+ GROUP BY 1, 2, 3, 4, 5
+ ORDER BY 2
+)
+SELECT flight_id,
+	   actual_arrival,
+	   arrival_airport,
+	   aircraft_code,
+	   tickets_sold,
+	   (
+		expense_per_mwot * mwot                   --расходы на аэропорты за самолёты
+	    + expense_per_pass * tickets_sold         --расходы на аэропорты за пассажиров
+		+ expense_per_hour * flight_duration / 60 --расходы на зарплату экипажа и топливо
+		+ 4 * distance                            --приблизительные траты на навигационные услуги в 2016-2017 годах
+	   )*1.01 AS flight_expense,                  --прямые эксплуатационные расходы на рейс (и накинут ещё 1% в качестве оценки погрешности)
+	   (
+		flight_revenue
+		- (expense_per_mwot * mwot               
+	      + expense_per_pass * tickets_sold
+	      )*6.67
+	   ) AS approximate_profitability,            --согласно оценке МинЭкономРазвития, расходы авиакомпании на услуги аэропортов составляют около 15% всех расходов 
+	   flight_revenue
+  FROM winter1617;
